@@ -4,6 +4,7 @@ import joblib
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 import logging
+import datetime
 
 # Set up logging
 log_path = os.path.join(os.path.dirname(__file__), '..', 'productionpal_dashboard.log')
@@ -12,14 +13,13 @@ logger.setLevel(logging.INFO)
 handler = logging.FileHandler(log_path)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
-logger.addHandler(handler)
-
-# Also log to console (stdout)
+if not logger.handlers:
+    logger.addHandler(handler)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+    logger.addHandler(console_handler)
 
-# LOG: Dashboard start
 logger.info("Streamlit dashboard started.")
 
 # Paths and features
@@ -35,15 +35,16 @@ STATE_MAP = {
     3: ("Faulty Bearing", "⚙️", "red", "Bearing fault, needs urgent attention")
 }
 
+# For attention: only these codes matter
+ATTENTION_CODES = [2, 3]
+
 st.set_page_config("ProductionPal: Real-Time Motor Health", layout="wide")
-st.title("⚡ ProductionPal Multi-Line Health Dashboard")
+st.title("⚡ ProductionPal Dashboard")
 st_autorefresh(interval=2000, key="data-refresh")
 
-# Load model
 model = joblib.load(MODEL_PATH)
 logger.info("Loaded health model for predictions.")
 
-# Check live data file
 if not os.path.exists(CSV_PATH):
     logger.error("Live data file not found.")
     st.warning("Live data file not found. Please start the sensor_mocker.py script!")
@@ -54,15 +55,15 @@ required_cols = FEATURES + ['line_id']
 df = pd.read_csv(CSV_PATH, usecols=lambda c: c in required_cols)
 lines = [1, 2, 3, 4]
 
-# Show status legend expanding area
+# Status legend
 with st.expander("Status Legend", expanded=True):
     st.markdown("**Status Codes Explained:**")
     for _, (text, icon, color, hint) in STATE_MAP.items():
         st.markdown(f"<span style='color:{color}; font-size:20px'>{icon} <b>{text}:</b></span> {hint}", unsafe_allow_html=True)
 
-# Prepare display cards for each line
-needs_attention = {}
+# Prepare the dashboard cards
 cols = st.columns(4)
+needs_attention = []
 
 for i, line_id in enumerate(lines):
     dline = df[df["line_id"] == line_id]
@@ -71,8 +72,9 @@ for i, line_id in enumerate(lines):
         x = pd.DataFrame([latest])
         pred = model.predict(x)[0]
         pred_text, pred_icon, pred_color, pred_hint = STATE_MAP[pred]
-        if pred != 0:
-            needs_attention[line_id] = (pred_text, pred_icon, pred_color, pred_hint)
+        if pred in ATTENTION_CODES:
+            alert_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            needs_attention.append((line_id, pred_text, pred_icon, pred_color, pred_hint, alert_time))
         with cols[i % 4]:
             st.markdown(f"### Line {line_id} <span style='font-size:24px'>{pred_icon}</span>", unsafe_allow_html=True)
             st.markdown(
@@ -85,28 +87,21 @@ for i, line_id in enumerate(lines):
             st.markdown(f"### Line {line_id}")
             st.warning("No recent data available")
 
-logger.info("Checked status and rendered dashboard tiles.")
+logger.info("Checked current statuses for all lines.")
 
-# Persistent Needs Attention panel
-st.markdown("## 🚨 **Needs Attention**")
-shown_attention = False
-for line_id in lines:
-    if line_id in needs_attention:
-        text, icon, color, hint = needs_attention[line_id]
+# Needs Attention area (only Rot. Unbalance and Faulty Bearing)
+st.markdown("## 🚨 **Needs Attention: Unbalance or Faulty Bearing Only**")
+if needs_attention:
+    for line_id, text, icon, color, hint, alert_time in needs_attention:
         st.markdown(
             f"<div style='background-color:{color};padding:12px 10px;border-radius:12px;margin-bottom:6px;'>"
-            f"Line <b>{line_id}</b>: <span style='font-size:28px'>{icon}</span> <b>{text}</b> &mdash; {hint}</div>",
+            f"<b>Line {line_id}</b> | <span style='font-size:28px'>{icon}</span> <b>{text}</b> <br>"
+            f"<span style='font-size:14px;'>{hint} — <b>{alert_time}</b></span></div>",
             unsafe_allow_html=True
         )
-        shown_attention = True
-    else:
-        st.markdown(
-            f"<div style='background-color:#2ecc40;padding:10px 10px;border-radius:10px;margin-bottom:6px;'>"
-            f"Line <b>{line_id}</b>: <span style='font-size:24px'>✅</span> <b>All Good</b></div>",
-            unsafe_allow_html=True
-        )
+else:
+    st.success("No Rot. Unbalance or Faulty Bearing detected on any line.")
 
-# One last info log
-logger.info("Dashboard attention area updated. Lines needing attention: %s", list(needs_attention.keys()))
+logger.info("Updated Needs Attention for attention codes [2, 3].")
 
 st.info("Dashboard auto-updates every 2 seconds. Run sensor_mocker.py for live data.")
