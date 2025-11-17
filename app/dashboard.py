@@ -6,12 +6,16 @@ from streamlit_autorefresh import st_autorefresh
 import logging
 import datetime
 
-# Setup logging
+# Setup logging: file and stdout (Docker logs)
 log_path = os.path.join(os.path.dirname(__file__), '..', 'productionpal_dashboard.log')
 logging.basicConfig(
-    filename=log_path,
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_path),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger("ProductionPalDashboard")
 
 logger.info("Streamlit dashboard started.")
@@ -24,10 +28,9 @@ CSV_PATH = os.path.join(BASE_DIR, 'data', 'CSV_Fault_Data', 'lines_stream.csv')
 
 FEATURES = ["Accelerometer 1 (m/s^2)", "Accelerometer 2 (m/s^2)", "Accelerometer 3 (m/s^2)"]
 
-# Load label map
+# Load label map (ensure model export and app use same Python & sklearn/joblib versions)
 label_map = joblib.load(LABELMAP_PATH)
 
-# Helper to assign friendly names; exclude unknowns by returning None
 def friendly_name(label):
     if label.startswith('H_H'):
         return "Healthy"
@@ -37,8 +40,7 @@ def friendly_name(label):
         return "Rot. Unbalance"
     elif label.startswith('F_B'):
         return "Faulty Bearing"
-    # Exclude unknown/less common faults
-    return None
+    return None  # Only include mapped ones
 
 # Build STATE_MAP excluding unknown statuses
 STATE_MAP = {}
@@ -47,9 +49,7 @@ for code, label in label_map.items():
     name = friendly_name(label)
     if name is None:
         continue
-    icon = "❓"
-    color = "gray"
-    hint = "Unknown status"
+    icon, color, hint = "❓", "gray", "Unknown status"
     if name == "Healthy":
         icon, color, hint = "✅", "green", "All systems normal"
     elif name == "Rot. Misalignment":
@@ -62,9 +62,8 @@ for code, label in label_map.items():
         ATTENTION_CODES.append(code)
     STATE_MAP[code] = (name, icon, color, hint)
 
-
 st.set_page_config("ProductionPal: Real-Time Motor Health", layout="wide")
-st.title("⚡ ProductionPal Multi-Line Health Dashboard")
+st.title("⚡ ProductionPal Dashboard")
 st_autorefresh(interval=2000, key="data-refresh")
 
 model = joblib.load(MODEL_PATH)
@@ -96,8 +95,8 @@ for i, line_id in enumerate(lines):
         pred = model.predict(x)[0]
         text, icon, color, hint = STATE_MAP.get(pred, ("Unknown", "❓", "gray", "Unknown"))
 
+        # Add or update attention list with timestamp
         if pred in ATTENTION_CODES:
-            # Add or update attention list with timestamp
             st.session_state.attention_list[line_id] = (text, icon, color, hint, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
         with cols[i % 4]:

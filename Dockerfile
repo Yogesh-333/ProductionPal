@@ -14,6 +14,7 @@ COPY app ./app
 # Copy models and data folders to the right place (one level up from /app)
 COPY models ./models
 COPY data ./data
+COPY run_all.py /app/run_all.py
 
 # Copy other scripts to /app
 COPY sensor_mocker.py .
@@ -25,4 +26,4 @@ COPY productionpal_training.log .
 EXPOSE 8501
 RUN python app/train_model.py
 # Run Streamlit dashboard by default
-CMD ["streamlit", "run", "app/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["python", "run_all.py"]

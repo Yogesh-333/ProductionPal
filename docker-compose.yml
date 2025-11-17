@@ -1,21 +1,23 @@
 version: '3.8'
-
 services:
   dashboard:
-    build: .
+    build:
+      context: .
+    container_name: productionpal_dashboard
     ports:
       - "8501:8501"
     volumes:
-      - ./data:/app/data
       - ./models:/app/models
+      - ./data:/app/data
       - ./productionpal_dashboard.log:/app/productionpal_dashboard.log
-    depends_on:
-      - sensor_mocker
+    command: streamlit run app/dashboard.py --server.port=8501 --server.address=0.0.0.0
 
   sensor_mocker:
-    build: .
-    command: ["python", "sensor_mocker.py"]
+    build:
+      context: .
+    container_name: productionpal_sensor
     volumes:
-      - ./data:/app/data
       - ./models:/app/models
+      - ./data:/app/data
       - ./productionpal_sensor.log:/app/productionpal_sensor.log
+    command: python sensor_mocker.py
