@@ -1,4 +1,4 @@
-# ⚡ ProductionPal: Electric Motor Predictive Maintenance
+# ⚡ ProductionPal: Production Line Maintenance Predictive System
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![MLflow](https://img.shields.io/badge/MLflow-Managed-blue?style=for-the-badge&logo=mlflow&logoColor=white)
