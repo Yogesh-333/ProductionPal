@@ -1,0 +1,10 @@
+artifact_location: file:///D:/conestoga/AI/sem2/ProductionPal/mlruns/580760534410293000/models/m-01c589726c984ad8b4db198e4c2a10b0/artifacts
+creation_timestamp: 1764116199883
+experiment_id: '580760534410293000'
+last_updated_timestamp: 1764116207342
+model_id: m-01c589726c984ad8b4db198e4c2a10b0
+model_type: null
+name: model
+source_run_id: f28f85599833462497f15d6f217beda0
+status: 2
+status_message: null

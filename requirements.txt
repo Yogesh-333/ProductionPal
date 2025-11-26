@@ -8,3 +8,4 @@ matplotlib
 scipy
 streamlit-autorefresh
 
+mlflow

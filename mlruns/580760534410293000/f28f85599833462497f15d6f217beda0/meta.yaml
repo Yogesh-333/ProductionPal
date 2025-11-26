@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/conestoga/AI/sem2/ProductionPal/mlruns/580760534410293000/f28f85599833462497f15d6f217beda0/artifacts
+end_time: 1764116207623
+entry_point_name: ''
+experiment_id: '580760534410293000'
+lifecycle_stage: active
+run_id: f28f85599833462497f15d6f217beda0
+run_name: receptive-bee-732
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764116197115
+status: 3
+tags: []
+user_id: yogeshkumar

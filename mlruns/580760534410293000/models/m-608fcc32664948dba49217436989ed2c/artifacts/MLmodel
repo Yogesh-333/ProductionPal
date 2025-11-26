@@ -1,0 +1,22 @@
+artifact_path: file:///D:/conestoga/AI/sem2/ProductionPal/mlruns/580760534410293000/models/m-608fcc32664948dba49217436989ed2c/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.2
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+mlflow_version: 3.6.0
+model_id: m-608fcc32664948dba49217436989ed2c
+model_size_bytes: 218909221
+model_uuid: m-608fcc32664948dba49217436989ed2c
+prompts: null
+run_id: b6b92db599c44393917c0baed62d4f67
+utc_time_created: '2025-11-26 00:20:29.128164'

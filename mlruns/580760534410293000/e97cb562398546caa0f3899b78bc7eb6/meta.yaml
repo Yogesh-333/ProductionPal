@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/conestoga/AI/sem2/ProductionPal/mlruns/580760534410293000/e97cb562398546caa0f3899b78bc7eb6/artifacts
+end_time: 1764117847565
+entry_point_name: ''
+experiment_id: '580760534410293000'
+lifecycle_stage: active
+run_id: e97cb562398546caa0f3899b78bc7eb6
+run_name: capable-calf-197
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764117836591
+status: 3
+tags: []
+user_id: yogeshkumar
