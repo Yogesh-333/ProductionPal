@@ -34,8 +34,7 @@ ProductionPal/
 ├── requirements.txt            # Project dependencies
 └── README.md                   # Project Documentation
 
----
-
+```
 ## 🛠️ Tech Stack
 
 - **Language:** Python 3.9+  
@@ -65,34 +64,28 @@ The project uses the **University of Ottawa Electric Motor Dataset (UOEMD-VAFCVS
 ```bash
 git clone https://github.com/YourUsername/ProductionPal.git
 cd ProductionPal
-
----
+```
 
 ### 2. Set up Virtual Environment
 
 ```bash
 python -m venv .venv
-
+```
 ```bash
 .venv\Scripts\activate
 
----
+```
 
 ## ✅ **3. Install Dependencies**
-
-```md
-### 3. Install Dependencies
 
 ```bash
 pip install pandas numpy scikit-learn joblib scipy mlflow streamlit
 
 
----
+```
 
 ## ✅ **4. Configure Git LFS (Important)**
 
-```md
-### 4. Configure Git LFS (Important)
 
 Since the trained model files are large, this project uses Git Large File Storage.
 
@@ -101,12 +94,9 @@ git lfs install
 git lfs pull
 
 
----
+```
 
-## ✅ **How to Run the Pipeline (Main Section Header)**
-
-```md
-## 🏃‍♂️ How to Run the Pipeline
+##  🏃‍♂️  **How to Run the Pipeline**
 
 ### ✅ Step 1: Start the MLflow Server
 
@@ -120,34 +110,28 @@ mlflow server \
     --port 5000
 
 
----
+```
 
 ## ✅ **Step 2: Train the Model**
 
-```md
-### ✅ Step 2: Train the Model
 
 ```bash
 python app/train_model.py
 
 
----
+```
 
 ## ✅ **Step 3: Run the Dashboard (Coming Soon)**
 
-```md
-### ✅ Step 3: Run the Dashboard (Coming Soon)
 
 ```bash
 streamlit run app/dashboard.py
 
 
----
+```
 
-## ✅ **Feature Engineering Section**
+##  🧠  **Feature Engineering**
 
-```md
-## 🧠 Feature Engineering
 
 To handle high-dimensional raw data (~420k samples per file), raw signals are aggregated into a compact feature vector.
 
@@ -169,13 +153,8 @@ To handle high-dimensional raw data (~420k samples per file), raw signals are ag
 2. Create your feature branch  
    ```bash
    git checkout -b feature/NewFeature
-
-
----
-
-## ✅ **License Section**
-
-```md
+    ```
+    
 ## 📄 License
 
 Distributed under the **MIT License**.  
