@@ -98,7 +98,7 @@ git lfs pull
 
 ##  🏃‍♂️  **How to Run the Pipeline**
 
-### ✅ Step 1: Start the MLflow Server
+### ✅ Step 1: Start the MLflow Server:
 
 We use a local MLflow server with a SQLite backend to track all experiments.
 
