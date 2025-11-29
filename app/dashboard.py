@@ -6,6 +6,14 @@ from streamlit_autorefresh import st_autorefresh
 import logging
 import datetime
 
+# --- SECRETS & CONFIGURATION (Added for Assignment) ---
+# Fetching variables to show in the UI for assignment verification
+APP_TITLE = os.getenv("EXPERIMENT_NAME", "ProductionPal")
+EXP_VER = os.getenv("EXPERIMENT_VERSION", "1.0.0")
+DB_USER = os.getenv("DB_USERNAME", "Not Set")
+DB_HOST = os.getenv("DB_HOSTNAME", "Not Set")
+ACC_TARGET = os.getenv("EXPECTED_ACCURACY", "N/A")
+
 # Setup logging: file and stdout (Docker logs)
 log_path = os.path.join(os.path.dirname(__file__), '..', 'productionpal_dashboard.log')
 logging.basicConfig(
@@ -62,8 +70,21 @@ for code, label in label_map.items():
         ATTENTION_CODES.append(code)
     STATE_MAP[code] = (name, icon, color, hint)
 
-st.set_page_config("ProductionPal: Real-Time Motor Health", layout="wide")
-st.title("⚡ ProductionPal Dashboard")
+# --- PAGE CONFIG & SIDEBAR (Added for Assignment) ---
+st.set_page_config(f"{APP_TITLE}: Real-Time Motor Health", layout="wide")
+
+# Sidebar for Secrets Management Verification
+st.sidebar.header("🔐 Secrets Manager")
+st.sidebar.success("Configuration Loaded from Docker ENV")
+st.sidebar.code(f"""
+User: {DB_USER}
+Host: {DB_HOST}
+Exp Ver: {EXP_VER}
+Target Acc: {ACC_TARGET}
+""")
+# ----------------------------------------------------
+
+st.title(f"⚡ {APP_TITLE} Dashboard")
 st_autorefresh(interval=2000, key="data-refresh")
 
 model = joblib.load(MODEL_PATH)
@@ -103,7 +124,9 @@ for i, line_id in enumerate(lines):
             st.markdown(f"### Line {line_id} <span style='font-size:24px'>{icon}</span>", unsafe_allow_html=True)
             st.markdown(f"<div style='background-color:{color};padding:10px 6px;border-radius:8px;text-align:center;'><b>{text}</b></div>", unsafe_allow_html=True)
             st.caption(hint)
+            # --- CHART RESTORED ---
             st.line_chart(dline[FEATURES].iloc[-10:])
+            # ----------------------
     else:
         with cols[i % 4]:
             st.markdown(f"### Line {line_id}")

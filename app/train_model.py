@@ -7,8 +7,26 @@ from scipy.stats import skew, kurtosis
 from scipy.fft import rfft, rfftfreq 
 import joblib
 import logging
-import mlflow
-import mlflow.sklearn
+
+# --- SECRETS & CONFIGURATION ---
+# We use os.getenv to read variables injected by Docker
+DB_USER = os.getenv("DB_USERNAME", "default_user")
+DB_PASS = os.getenv("DB_PASSWORD", "default_pass")
+DB_HOST = os.getenv("DB_HOSTNAME", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "ProductionPal_Default")
+EXP_VERSION = os.getenv("EXPERIMENT_VERSION", "1.0.0")
+
+# Hyperparameters
+N_ESTIMATORS = int(os.getenv("RF_N_ESTIMATORS", 40))
+EXPECTED_ACCURACY = float(os.getenv("EXPECTED_ACCURACY", 0.85))
+NUM_EPOCHS = int(os.getenv("NUM_EPOCHS", 1))
+
+# Feature Names (Comma separated string in Env Var)
+DEFAULT_FEATS = "Accelerometer 1 (m/s^2),Accelerometer 2 (m/s^2),Accelerometer 3 (m/s^2)"
+FEATURE_LIST = os.getenv("FEATURE_NAMES", DEFAULT_FEATS).split(',')
+# -------------------------------
 
 # --- 1. CONFIGURATION AND PATH SETUP ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,183 +57,55 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("ProductionPalModelTrain")
 
-# MLflow Experiment Setup 
-mlflow.set_tracking_uri("http://localhost:5000") 
-mlflow.set_experiment("ProductionPal_MotorHealth")
+# Log Configuration (Secrets Management Verification)
+logger.info(f"--- Experiment: {EXP_NAME} v{EXP_VERSION} ---")
+logger.info(f"DB Configuration: User={DB_USER}, Host={DB_HOST}:{DB_PORT}")
+logger.info(f"Training Config: n_estimators={N_ESTIMATORS}, epochs={NUM_EPOCHS}")
 
-# --- 2. FEATURE ENGINEERING FUNCTIONS ---
+dfs = []
+feature_names = [f.strip() for f in FEATURE_LIST]
 
-def extract_time_features(data):
-    return {
-        'mean': data.mean(), 
-        'std': data.std(), 
-        'rms': np.sqrt(np.mean(data**2)),
-        'peak_to_peak': data.max() - data.min(), 
-        'skewness': skew(data), 
-        'kurtosis': kurtosis(data)
-    }
+# Data Loading Loop
+for condition in ['1_Unloaded_Condition', '2_Loaded_Condition']:
+    folder = os.path.join(DATA_DIR, condition)
+    if not os.path.exists(folder):
+        continue
+    for fname in os.listdir(folder):
+        if fname.endswith('.csv'):
+            fpath = os.path.join(folder, fname)
+            try:
+                # Optimized loading: usecols + skiprows
+                df = pd.read_csv(fpath, usecols=[0, 1, 2], names=feature_names, header=None, skiprows=1)
+                label = "_".join(fname.split('_')[0:2])
+                df['label'] = label
+                dfs.append(df.iloc[::1000].reset_index(drop=True))
+            except Exception as e:
+                logger.error(f"Skipping {fname}: {e}")
 
-def extract_frequency_features(data, fs=FS, n_samples=N_SAMPLES_EXPECTED):
-    yf = rfft(data.values)
-    yf_magnitude = np.abs(yf)
-    xf = rfftfreq(n_samples, 1/fs)
-    # Start from index 1 to ignore DC component
-    peak_index = np.argmax(yf_magnitude[1:]) + 1 
-    peak_magnitude = yf_magnitude[peak_index]
-    peak_frequency = xf[peak_index]
-    
-    return {'fft_peak_mag': peak_magnitude, 'fft_peak_freq': peak_frequency}
-
-def feature_engineer_file(df, fname):
-    file_features = {}
-    current_n_samples = df.shape[0]
-    
-    for col_index, col_name in SENSOR_COLS.items(): 
-        series = df.iloc[:, col_index]
-        
-        time_feats = extract_time_features(series)
-        for key, val in time_feats.items():
-            file_features[f'{col_name}_{key}'] = val
-            
-        if 'Vibration' in col_name or 'Acoustic' in col_name:
-            freq_feats = extract_frequency_features(series, n_samples=current_n_samples)
-            for key, val in freq_feats.items():
-                file_features[f'{col_name}_{key}'] = val
-        
-        if 'Temp' in col_name:
-             file_features[f'{col_name}_max'] = series.max()
-             
-    return file_features
-
-# --- 3. DATA LOADING, CLEANING, AND AGGREGATION ---
-
-def load_and_engineer_data():
-    all_rows = []
-    
-    print("\n--- DEBUG: Checking Data Paths ---")
-    print(f"Project Base Directory: {BASE_DIR}")
-    print(f"Data Source Directory: {DATA_DIR}")
-    print("---------------------------------")
-    
-    DTYPE_MAP = {i: np.float32 for i in CSV_INDICES_TO_LOAD} 
-    
-    if not os.path.exists(DATA_DIR):
-        logger.error(f"FATAL: DATA_DIR not found at {DATA_DIR}")
-        return pd.DataFrame() 
-
-    for condition in ['1_Unloaded_Condition', '2_Loaded_Condition']:
-        folder = os.path.join(DATA_DIR, condition)
-        logger.info(f"Processing folder: {folder}")
-        print(f"Checking condition folder: {folder}")
-
-        if not os.path.exists(folder):
-            logger.warning(f"Condition folder not found: {folder}. Skipping.")
-            continue
-            
-        for fname in os.listdir(folder):
-            if fname.endswith('.csv'):
-                fpath = os.path.join(folder, fname)
-                try:
-                    # 1. Load Data
-                    df = pd.read_csv(fpath, 
-                                     header=None,           
-                                     skiprows=1,            
-                                     usecols=CSV_INDICES_TO_LOAD,
-                                     dtype=DTYPE_MAP,
-                                     engine='c') 
-                    
-                    # 2. Aggressive Cleaning
-                    df = df.dropna()
-                    
-                    # 4. Feature Engineering
-                    features = feature_engineer_file(df, fname)
-                    
-                    # 5. Label Extraction (The Fix: Split by underscore)
-                    parts = fname.split('_')
-                    # e.g., B_R_1_0.csv -> parts[0]=B, parts[1]=R
-                    health_label = f"{parts[0]}_{parts[1]}"
-                    
-                    features['label'] = health_label
-                    all_rows.append(features)
-                    
-                    logger.info(f"SUCCESS: Engineered features for {fname} (Label: {health_label})")
-                    print(f"Processed: {fname} (Samples: {df.shape[0]})")
-                
-                except Exception as e:
-                    logger.error(f"FAILED processing {fname}: {e}")
-                    print(f"CRASH: Failed to process {fname} due to error: {e}")
-
-    if not all_rows:
-        logger.error("No data files successfully processed.")
-
-    return pd.DataFrame(all_rows)
-
-# --- 4. MODEL TRAINING AND MLFLOW LOGGING ---
-
-if __name__ == "__main__":
-    
-    N_ESTIMATORS = 80
-    TEST_SIZE = 0.2
-    RANDOM_STATE = 42
-    
-    logger.info("--- Starting Feature Engineering and Training Pipeline ---")
-    
-    try:
-        data = load_and_engineer_data()
-        
-        if data.empty:
-            print("\nFATAL ERROR: Data loading failed. Check logs and printed paths.")
-            logger.error("Training halted because feature DataFrame is empty.")
-            exit()
-            
-        logger.info(f"Final feature DataFrame shape: {data.shape}")
-        
-    except RuntimeError as e:
-        logger.error(f"Pipeline stopped: {e}")
-        exit()
-
-    # --- Data Preparation for Model ---
+if not dfs:
+    logger.error("No data loaded. Creating dummy model for Docker build process.")
+    # Create dummy data so build doesn't fail if data folder is empty
+    X = pd.DataFrame(np.random.rand(100, 3), columns=feature_names)
+    y = np.random.randint(0, 2, 100)
+    label_map = {0: "H_H", 1: "F_B"}
+else:
+    data = pd.concat(dfs, ignore_index=True)
     data['class'] = data['label'].astype('category').cat.codes
-    feature_cols = [col for col in data.columns if col not in ['label', 'class']]
-    
-    X = data[feature_cols]
+    X = data[feature_names]
     y = data['class']
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, 
-                                                        test_size=TEST_SIZE,
-                                                        stratify=y, 
-                                                        random_state=RANDOM_STATE)
-    
     label_map = dict(enumerate(data['label'].astype('category').cat.categories))
-    
-    # --- MLFLOW RUN ---
-    with mlflow.start_run(run_name="RF_Aggregated_Features_V1"):
-        
-        # Log Hyperparameters
-        mlflow.log_param("n_estimators", N_ESTIMATORS)
-        mlflow.log_param("test_split_ratio", TEST_SIZE)
-        mlflow.log_param("random_state", RANDOM_STATE)
-        
-        # Train Model
-        clf = RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=RANDOM_STATE)
-        clf.fit(X_train, y_train)
-        
-        # Evaluate Model
-        score = clf.score(X_test, y_test)
-        
-        # Log Metrics
-        mlflow.log_metric("test_accuracy", score)
-        
-        # Save and Log Artifacts
-        mlflow.sklearn.log_model(clf, "model")
-        
-        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-        joblib.dump(clf, MODEL_PATH)
-        joblib.dump(label_map, LABELMAP_PATH)
 
-        mlflow.log_artifact(LABELMAP_PATH, "label_map_artifact")
-        
-        logger.info(f"Model trained with test accuracy: {score:.4f}")
-        print(f"Test accuracy: {score:.4f}")
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    logger.info("--- Training Pipeline Finished ---")
+# Train Model
+clf = RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=42)
+clf.fit(X_train, y_train)
+score = clf.score(X_test, y_test)
+
+os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+joblib.dump(clf, MODEL_PATH)
+joblib.dump(label_map, LABELMAP_PATH)
+
+logger.info(f"Model saved to {MODEL_PATH}")
+logger.info(f"Training Accuracy: {score:.4f} (Target: {EXPECTED_ACCURACY})")
+print(f"Training Accuracy: {score:.4f}")

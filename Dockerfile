@@ -1,29 +1,34 @@
-# Use official Python runtime image
-FROM python:3.10-slim
+# 1. Base Image
+FROM python:3.9-slim
 
-# Set working directory in container
+# 2. Set working directory
 WORKDIR /app
 
-# Copy requirements and install
+# 3. Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app folder
-COPY app ./app
-
-# Copy models and data folders to the right place (one level up from /app)
-COPY models ./models
-COPY data ./data
-COPY run_all.py /app/run_all.py
-
-# Copy other scripts to /app
+# 4. Copy Application Code & Scripts
+COPY app/ ./app/
 COPY sensor_mocker.py .
-COPY productionpal_dashboard.log .
-COPY productionpal_sensor.log .
-COPY productionpal_training.log .
+COPY run_all.py .
 
-# Expose Streamlit default port
-EXPOSE 8501
+# 5. Create directories for data and models
+RUN mkdir -p data/CSV_Fault_Data/2_CSV_Data_Files models
+
+# 6. Copy data (Required for training to succeed)
+COPY data ./data
+
+# 7. Define Build-Time Environment Variables
+ENV DB_USERNAME="admin_build"
+ENV EXPERIMENT_NAME="Docker_Build"
+
+# 8. TRAIN MODEL DURING BUILD
+# Since MLflow is removed, this simply trains sklearn model and saves .pkl files
 RUN python app/train_model.py
-# Run Streamlit dashboard by default
+
+# 9. Expose Port
+EXPOSE 8501
+
+# 10. Run the orchestrator script
 CMD ["python", "run_all.py"]
