@@ -1,0 +1,10 @@
+artifact_location: file:///D:\Canada\studies\Conestoga\AI Course\ProductionPal\mlruns/950397113983544572/models/m-924f6372193a42f299a8c6b95def08c2/artifacts
+creation_timestamp: 1764961997477
+experiment_id: '950397113983544572'
+last_updated_timestamp: 1764962003195
+model_id: m-924f6372193a42f299a8c6b95def08c2
+model_type: null
+name: model
+source_run_id: b2c2f93b447a44a1a8b321e0c1d73b34
+status: 2
+status_message: null

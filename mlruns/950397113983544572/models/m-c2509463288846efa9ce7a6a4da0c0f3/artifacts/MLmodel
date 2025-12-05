@@ -1,0 +1,22 @@
+artifact_path: file:///D:\Canada\studies\Conestoga\AI Course\ProductionPal\mlruns/950397113983544572/models/m-c2509463288846efa9ce7a6a4da0c0f3/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.9
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.1
+mlflow_version: 3.7.0
+model_id: m-c2509463288846efa9ce7a6a4da0c0f3
+model_size_bytes: 209546788
+model_uuid: m-c2509463288846efa9ce7a6a4da0c0f3
+prompts: null
+run_id: ffc7de48ebea4521972ae1a6af1c92ee
+utc_time_created: '2025-12-05 19:10:44.011912'

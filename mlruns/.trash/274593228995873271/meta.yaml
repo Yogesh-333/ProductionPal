@@ -1,0 +1,8 @@
+artifact_location: file:///D:\Canada\studies\Conestoga\AI Course\ProductionPal\mlruns/274593228995873271
+creation_time: 1764959812467
+experiment_id: '274593228995873271'
+last_update_time: 1764960838533
+lifecycle_stage: deleted
+name: ProductionPal_Default
+tags:
+  mlflow.experimentKind: custom_model_development

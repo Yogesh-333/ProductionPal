@@ -7,6 +7,8 @@ from scipy.stats import skew, kurtosis
 from scipy.fft import rfft, rfftfreq 
 import joblib
 import logging
+import mlflow
+import mlflow.sklearn
 
 # --- SECRETS & CONFIGURATION ---
 # We use os.getenv to read variables injected by Docker
@@ -15,7 +17,7 @@ DB_PASS = os.getenv("DB_PASSWORD", "default_pass")
 DB_HOST = os.getenv("DB_HOSTNAME", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
-EXP_NAME = os.getenv("EXPERIMENT_NAME", "ProductionPal_Default")
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "ProductionPal_MLFlow")
 EXP_VERSION = os.getenv("EXPERIMENT_VERSION", "1.0.0")
 
 # Hyperparameters
@@ -33,6 +35,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'data', 'CSV_Fault_Data', '2_CSV_Data_Files')
 MODEL_PATH = os.path.join(BASE_DIR, 'models', 'motor_health_model.pkl')
 LABELMAP_PATH = os.path.join(BASE_DIR, 'models', 'label_map.pkl')
+MLRUNS_DIR = os.path.join(BASE_DIR, 'mlruns')
 
 # Sensor columns (Indices 0-4)
 SENSOR_COLS = {
@@ -61,6 +64,10 @@ logger = logging.getLogger("ProductionPalModelTrain")
 logger.info(f"--- Experiment: {EXP_NAME} v{EXP_VERSION} ---")
 logger.info(f"DB Configuration: User={DB_USER}, Host={DB_HOST}:{DB_PORT}")
 logger.info(f"Training Config: n_estimators={N_ESTIMATORS}, epochs={NUM_EPOCHS}")
+
+# --- MLflow Setup ---
+mlflow.set_tracking_uri(f"file:///{MLRUNS_DIR}")
+experiment = mlflow.set_experiment(EXP_NAME)
 
 dfs = []
 feature_names = [f.strip() for f in FEATURE_LIST]
@@ -97,15 +104,44 @@ else:
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Calculate Run Name (Auto-increment)
+try:
+    runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id])
+    run_count = len(runs)
+except Exception:
+    run_count = 0
+    
+run_name_dynamic = f"Run_{EXP_VERSION}_{run_count + 1}"
+
 # Train Model
-clf = RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=42)
-clf.fit(X_train, y_train)
-score = clf.score(X_test, y_test)
+with mlflow.start_run(run_name=run_name_dynamic):
+    # Log Params
+    mlflow.log_params({
+        "n_estimators": N_ESTIMATORS,
+        "expected_accuracy": EXPECTED_ACCURACY,
+        "epochs": NUM_EPOCHS,
+        "features": FEATURE_LIST,
+        "db_user": DB_USER  # Careful logging secrets, only user here
+    })
+    
+    clf = RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=42)
+    clf.fit(X_train, y_train)
+    score = clf.score(X_test, y_test)
+    
+    # Log Metrics
+    mlflow.log_metric("accuracy", score)
+    
+    # Log Model
+    mlflow.sklearn.log_model(clf, "model")
 
-os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-joblib.dump(clf, MODEL_PATH)
-joblib.dump(label_map, LABELMAP_PATH)
+    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+    joblib.dump(clf, MODEL_PATH)
+    joblib.dump(label_map, LABELMAP_PATH)
+    
+    # Log file artifact (legacy model)
+    mlflow.log_artifact(MODEL_PATH)
 
-logger.info(f"Model saved to {MODEL_PATH}")
-logger.info(f"Training Accuracy: {score:.4f} (Target: {EXPECTED_ACCURACY})")
-print(f"Training Accuracy: {score:.4f}")
+    logger.info(f"Model saved to {MODEL_PATH}")
+    logger.info(f"Training Accuracy: {score:.4f} (Target: {EXPECTED_ACCURACY})")
+    print(f"Training Accuracy: {score:.4f}")
+    print(f"MLflow Run ID: {mlflow.active_run().info.run_id}")
