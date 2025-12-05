@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ProductionPalDashboard")
 
-logger.info("Streamlit dashboard started.")
+logger.info("--- Application: ProductionPal Dashboard Started ---")
 
 # Paths and features
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

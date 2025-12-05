@@ -21,3 +21,23 @@ services:
       - ./data:/app/data
       - ./productionpal_sensor.log:/app/productionpal_sensor.log
     command: python sensor_mocker.py
+
+  mlflow:
+    build:
+      context: .
+    container_name: productionpal_mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
+    command: mlflow ui --backend-store-uri mlruns --host 0.0.0.0 --port 5000
+
+  gateway:
+    build:
+      context: .
+    container_name: productionpal_gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: python app/gateway.py
