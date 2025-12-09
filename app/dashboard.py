@@ -108,17 +108,25 @@ cols = st.columns(4)
 if "attention_list" not in st.session_state:
     st.session_state.attention_list = {}
 
+if "resolved_lines" not in st.session_state:
+    st.session_state.resolved_lines = set()
+
 for i, line_id in enumerate(lines):
     dline = df[df["line_id"] == line_id]
     if len(dline) > 0:
         latest = dline.iloc[-1][FEATURES]
         x = pd.DataFrame([latest])
         pred = model.predict(x)[0]
-        text, icon, color, hint = STATE_MAP.get(pred, ("Unknown", "❓", "gray", "Unknown"))
+        text, icon, color, hint = STATE_MAP.get(pred, ("Healthy", "✅", "green", "All systems normal"))
 
         # Add or update attention list with timestamp
         if pred in ATTENTION_CODES:
-            st.session_state.attention_list[line_id] = (text, icon, color, hint, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            if line_id not in st.session_state.resolved_lines:
+                st.session_state.attention_list[line_id] = (text, icon, color, hint, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        else:
+             # Reset resolved status if machine becomes healthy (or at least not critical)
+            if line_id in st.session_state.resolved_lines:
+                st.session_state.resolved_lines.remove(line_id)
 
         with cols[i % 4]:
             st.markdown(f"### Line {line_id} <span style='font-size:24px'>{icon}</span>", unsafe_allow_html=True)
@@ -146,6 +154,7 @@ if st.session_state.attention_list:
             unsafe_allow_html=True
         )
         if st.button(f"Mark Line {line_id} Fixed", key=f"fix_{line_id}"):
+            st.session_state.resolved_lines.add(line_id)
             remove_keys.append(line_id)
     for k in remove_keys:
         del st.session_state.attention_list[k]
