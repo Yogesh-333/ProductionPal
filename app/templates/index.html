@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProductionPal Gateway</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #2563eb, #db2777);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-light);
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+        }
+
+        .card p {
+            color: var(--text-light);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .action-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 1rem;
+            width: 100%;
+        }
+
+        .action-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .status {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+        }
+
+        .success {
+            color: #16a34a;
+        }
+
+        .error {
+            color: #dc2626;
+        }
+
+        .loading {
+            color: #ca8a04;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>ProductionPal</h1>
+            <p class="subtitle">Dashboard, MLflow Monitoring & Training Gateway</p>
+        </header>
+
+        <div class="grid">
+            <!-- Dashboard Card -->
+            <a href="http://localhost:8501" target="_blank" class="card">
+                <div class="icon">📊</div>
+                <h2>Live Dashboard</h2>
+                <p>Monitor real-time motor health and sensor data.</p>
+            </a>
+
+            <!-- MLflow Card -->
+            <a href="http://localhost:5000" target="_blank" class="card">
+                <div class="icon">📈</div>
+                <h2>MLflow Tracking</h2>
+                <p>View experiments, metrics, and model versions.</p>
+            </a>
+
+            <!-- Training Card -->
+            <div class="card">
+                <div class="icon">🚀</div>
+                <h2>Train Model</h2>
+                <p>Trigger a new training run with current data.</p>
+                <button id="trainBtn" class="action-btn">Start Training</button>
+                <div id="status" class="status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const trainBtn = document.getElementById('trainBtn');
+        const statusDiv = document.getElementById('status');
+
+        trainBtn.addEventListener('click', async () => {
+            trainBtn.disabled = true;
+            statusDiv.textContent = 'Training started...';
+            statusDiv.className = 'status loading';
+
+            try {
+                const response = await fetch('/train', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.textContent = `Success! Run ID: ${data.run_id}`;
+                    statusDiv.className = 'status success';
+                } else {
+                    statusDiv.textContent = `Error: ${data.error}`;
+                    statusDiv.className = 'status error';
+                }
+            } catch (err) {
+                statusDiv.textContent = `Network Error: ${err.message}`;
+                statusDiv.className = 'status error';
+            } finally {
+                trainBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

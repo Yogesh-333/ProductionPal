@@ -72,7 +72,8 @@ experiment = mlflow.set_experiment(EXP_NAME)
 dfs = []
 feature_names = [f.strip() for f in FEATURE_LIST]
 
-# Data Loading Loop
+# Loop for Data Loading
+logger.info("--- Pipeline: Data Loading Started ---")
 for condition in ['1_Unloaded_Condition', '2_Loaded_Condition']:
     folder = os.path.join(DATA_DIR, condition)
     if not os.path.exists(folder):
@@ -82,12 +83,14 @@ for condition in ['1_Unloaded_Condition', '2_Loaded_Condition']:
             fpath = os.path.join(folder, fname)
             try:
                 # Optimized loading: usecols + skiprows
+                # logger.debug(f"Loading file: {fname}") # Optional verbose log
                 df = pd.read_csv(fpath, usecols=[0, 1, 2], names=feature_names, header=None, skiprows=1)
                 label = "_".join(fname.split('_')[0:2])
                 df['label'] = label
                 dfs.append(df.iloc[::1000].reset_index(drop=True))
             except Exception as e:
                 logger.error(f"Skipping {fname}: {e}")
+logger.info("--- Pipeline: Data Loading Completed ---")
 
 if not dfs:
     logger.error("No data loaded. Creating dummy model for Docker build process.")
@@ -96,11 +99,14 @@ if not dfs:
     y = np.random.randint(0, 2, 100)
     label_map = {0: "H_H", 1: "F_B"}
 else:
+    logger.info("--- Pipeline: Preprocessing Started ---")
     data = pd.concat(dfs, ignore_index=True)
     data['class'] = data['label'].astype('category').cat.codes
     X = data[feature_names]
     y = data['class']
     label_map = dict(enumerate(data['label'].astype('category').cat.categories))
+    logger.info(f"Data concatenated. Shape: {data.shape}")
+    logger.info("--- Pipeline: Preprocessing Completed ---")
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -114,6 +120,7 @@ except Exception:
 run_name_dynamic = f"Run_{EXP_VERSION}_{run_count + 1}"
 
 # Train Model
+logger.info(f"--- Pipeline: Training Started (Run Name: {run_name_dynamic}) ---")
 with mlflow.start_run(run_name=run_name_dynamic):
     # Log Params
     mlflow.log_params({
@@ -145,3 +152,5 @@ with mlflow.start_run(run_name=run_name_dynamic):
     logger.info(f"Training Accuracy: {score:.4f} (Target: {EXPECTED_ACCURACY})")
     print(f"Training Accuracy: {score:.4f}")
     print(f"MLflow Run ID: {mlflow.active_run().info.run_id}")
+    
+logger.info("--- Pipeline: Training Completed ---")

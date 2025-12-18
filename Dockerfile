@@ -1,5 +1,5 @@
 # 1. Base Image
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # 2. Set working directory
 WORKDIR /app
@@ -27,8 +27,9 @@ ENV EXPERIMENT_NAME="Docker_Build"
 # Since MLflow is removed, this simply trains sklearn model and saves .pkl files
 RUN python app/train_model.py
 
-# 9. Expose Port
-EXPOSE 8501
+# 9. Expose Ports
+# 8501: Streamlit, 5000: MLflow, 8000: Gateway
+EXPOSE 8501 5000 8000
 
 # 10. Run the orchestrator script
 CMD ["python", "run_all.py"]
